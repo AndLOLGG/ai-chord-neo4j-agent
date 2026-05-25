@@ -1,6 +1,15 @@
+import dotenv from "dotenv";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const repoRoot = path.resolve(__dirname, "..");
+
+dotenv.config({ path: path.join(repoRoot, ".env") });
 
 const endpoint = process.env.N8N_SEARCH_ENDPOINT;
 const authHeaderName = process.env.N8N_AUTH_HEADER_NAME || "";
@@ -47,20 +56,30 @@ server.tool(
     }
 
     const contentType = response.headers.get("content-type") || "";
+    const rawText = await response.text();
+
+    if (!rawText.trim()) {
+      throw new Error("n8n returned an empty response body.");
+    }
 
     if (!contentType.includes("application/json")) {
-      const text = await response.text();
       return {
         content: [
           {
             type: "text",
-            text
+            text: rawText
           }
         ]
       };
     }
 
-    const payload = await response.json();
+    let payload;
+
+    try {
+      payload = JSON.parse(rawText);
+    } catch (error) {
+      throw new Error(`n8n returned invalid JSON: ${error.message}`);
+    }
 
     const text =
       payload?.response ||

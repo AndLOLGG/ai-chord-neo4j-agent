@@ -2,77 +2,54 @@
 
 ## Goal
 
-Expose the existing n8n chord workflow to Hermes through a local MCP server.
+Expose the working n8n chord retrieval workflow to Hermes through a local MCP server.
 
-## Minimal Architecture
+## Current Architecture
 
-```text
-Hermes -> MCP server -> n8n endpoint -> search_cw logic -> Neo4j / ChordsWorld
-```
+    Hermes -> MCP server -> direct n8n webhook -> search_cw_webhook -> Neo4j / ChordsWorld
 
 ## Why This Path
 
-This is the lowest-risk way to make Hermes the primary agent interface without rewriting the existing n8n workflow logic.
+This is the lowest-risk way to make Hermes the primary agent interface without relying on Execute Sub-workflow return behavior.
 
-## Current Constraint
+## Current Working Workflow
 
-The exported `search_cw` workflow starts with `When Executed by Another Workflow`, so it isn't directly callable from Hermes yet.
+The repo now uses a direct webhook version of the workflow:
 
-To connect Hermes cleanly, expose it through one of these n8n options:
+- `search_cw_webhook`
 
-1. Preferred:
-   Create a tiny webhook wrapper workflow in n8n:
-   - `Webhook`
-   - `Execute Sub-workflow` -> `search_cw`
-   - `Respond to Webhook`
+This workflow starts with an n8n `Webhook` node and can be called directly by the MCP server.
 
-2. Temporary:
-   Point the MCP server to an existing n8n endpoint that already returns the `search_cw` result shape.
+## Request Shape
 
-The MCP server in this repo expects an HTTP endpoint that accepts a POST body with:
+The MCP server POSTs JSON like this:
 
-```json
-{
-  "query": "find chords for yellow by coldplay",
-  "input": "find chords for yellow by coldplay",
-  "chatInput": "find chords for yellow by coldplay"
-}
-```
-
-And ideally returns JSON with a top-level `response` field.
+    {
+      "query": "find chords for Yellow by Coldplay"
+    }
 
 ## Environment Variables
 
 Create a local `.env` or set env vars manually:
 
-```text
-N8N_SEARCH_ENDPOINT=http://localhost:5678/webhook/92ea99b2-75e5-4145-b1e7-51c234432cca
-N8N_AUTH_HEADER_NAME=
-N8N_AUTH_HEADER_VALUE=
-```
+    N8N_SEARCH_ENDPOINT=http://localhost:5678/webhook/cc549916-c92c-4fc1-be35-bceb9f72c14e
+    N8N_AUTH_HEADER_NAME=
+    N8N_AUTH_HEADER_VALUE=
 
 ## Install And Run
 
-```bash
-npm install
-npm run mcp
-```
+    npm install
+    npm run mcp
 
 ## Hermes MCP Registration
 
 Register this server in Hermes as a local stdio MCP server that runs:
 
-```bash
-node /path/to/ai-chord-neo4j-agent/mcp/server.js
-```
+    node /mnt/c/Users/andre/IdeaProjects/ai-chord-neo4j-agent/mcp/server.js
 
 Or:
 
-```bash
-npm run mcp
-```
-
-depending on how Hermes expects local MCP commands to be configured on your machine.
+    npm run mcp
 
 ## Expected Tool
 
@@ -80,14 +57,10 @@ The MCP server exposes one tool:
 
 - `search_cw`
 
-It should be the primary tool Hermes uses for chord retrieval.
+Hermes should use this as the primary tool for chord retrieval.
 
 ## Current Working Endpoint
 
-The current working production webhook is:
+    http://localhost:5678/webhook/cc549916-c92c-4fc1-be35-bceb9f72c14e
 
-```text
-http://localhost:5678/webhook/92ea99b2-75e5-4145-b1e7-51c234432cca
-```
-
-This endpoint was verified with a direct POST request and returns the expected chord payload.
+This direct webhook endpoint was verified with a POST request and returns the expected chord payload.

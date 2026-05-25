@@ -5,7 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "92ea99b2-75e5-4145-b1e7-51c234432cca",
-        "responseMode": "responseNode",
+        "responseMode": "lastNode",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
@@ -35,19 +35,6 @@
     },
     {
       "parameters": {
-        "options": {}
-      },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        416,
-        0
-      ],
-      "id": "5755771a-cf27-4a56-b8a4-0ed585f63239",
-      "name": "Return Response"
-    },
-    {
-      "parameters": {
         "workflowId": {
           "__rl": true,
           "value": "HxbW8qL7KlLlh7Hh",
@@ -72,7 +59,21 @@
         0
       ],
       "id": "237840f3-eaaf-463c-b325-d4dca959b61f",
-      "name": "Call 'search_cw'"
+      "name": "Call 'search_cw'",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const first = $input.first();\n\nreturn [\n  {\n    json: {\n      response:\n        first?.json?.response ||\n        first?.json?.summary ||\n        \"Song not found in the current workflow-backed corpus.\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        0
+      ],
+      "id": "3d0b17fc-70fa-4d52-a532-f6eb2d0dc00e",
+      "name": "Prepare Response"
     }
   ],
   "pinData": {},
@@ -103,11 +104,16 @@
       "main": [
         [
           {
-            "node": "Return Response",
+            "node": "Prepare Response",
             "type": "main",
             "index": 0
           }
         ]
+      ]
+    },
+    "Prepare Response": {
+      "main": [
+        []
       ]
     }
   },
@@ -117,7 +123,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "5e9c8b41-145c-4a47-934a-a35548b1c41b",
+  "versionId": "fc81c4cc-a7f7-44df-beab-d9f49166d5f4",
   "meta": {
     "instanceId": "8ac479274b15c1a81cdcc004a593334e4212386ff41940c5c9d2b82b57883277"
   },

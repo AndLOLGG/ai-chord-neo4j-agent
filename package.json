@@ -1,0 +1,14 @@
+{
+  "name": "ai-chord-neo4j-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP wrapper and project assets for AI chord retrieval using Hermes, n8n, and Neo4j.",
+  "type": "module",
+  "scripts": {
+    "mcp": "node mcp/server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  }
+}

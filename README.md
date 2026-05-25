@@ -126,6 +126,12 @@ The prototype currently supports:
 
 The current priority is stability and demonstrability for the final project hand-in.
 
+## Hermes Integration
+
+This repository now includes a minimal local MCP wrapper in [mcp/server.js](/C:/Users/andre/IdeaProjects/ai-chord-neo4j-agent/mcp/server.js) so Hermes can call the chord workflow as a real tool.
+
+Setup notes are in [docs/hermes-setup.md](/C:/Users/andre/IdeaProjects/ai-chord-neo4j-agent/docs/hermes-setup.md).
+
 ## Limitations
 
 - web ingestion can still produce noisy records in edge cases
@@ -140,8 +146,12 @@ The current priority is stability and demonstrability for the final project hand
 ├── README.md
 ├── docs/
 │   └── demo-notes.md
+│   └── hermes-setup.md
+├── mcp/
+│   └── server.js
 ├── n8n/
 │   └── README.md
+├── package.json
 ├── prompts/
 │   └── search-cw-system-prompt.md
 └── notes/

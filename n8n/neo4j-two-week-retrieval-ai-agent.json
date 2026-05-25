@@ -1,0 +1,157 @@
+{
+  "name": "Neo4j two-week Retrieval AI-agent",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        1008,
+        288
+      ],
+      "id": "8d3271a3-a774-4ba2-b517-f91a41ec79f4",
+      "name": "When chat message received",
+      "webhookId": "0894b6ba-40c8-4307-aa8c-b0f1ce7d11da"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a helpful guitar-song assistant.\n\nWhen the user asks about a song, chords, song structure, or provides a ChordsWorld URL, you must use the tool \"search_cw\".\nAlways pass the full user message as the \"query\" parameter.\n\nUse the tool result as the single source of truth.\nDo not invent song details, chords, or guitar advice.\n\nIf a formatted song overview is returned, present it directly as plain text.\nDo not wrap it in JSON.\nDo not include quotes.\nEnsure line breaks are rendered normally.\n\nIf the song is not found and the user did not provide a ChordsWorld URL, tell the user to paste the ChordsWorld song URL and it will be saved automatically.\n\nKeep the answer short, clean, and readable."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1168,
+        288
+      ],
+      "id": "ffc48abf-dfd9-477d-8847-c2a569c4095a",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1024,
+        496
+      ],
+      "id": "05062aa2-be1a-415e-9769-8218363b5cea",
+      "name": "OpenAI Chat Model",
+      "alwaysOutputData": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "GxWXK8chxR2w2Gw7",
+          "name": "n8n-agent"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Search the Neo4j music knowledge base \"search_cw\" for songs, chord progressions, and song sections.\nUse this tool when the user asks about a song title, chords, intro, verse, chorus, or song structure.",
+        "workflowId": {
+          "__rl": true,
+          "value": "HxbW8qL7KlLlh7Hh",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/HxbW8qL7KlLlh7Hh",
+          "cachedResultName": "search_cw"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "input": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('input', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "input"
+          ],
+          "schema": [
+            {
+              "id": "input",
+              "displayName": "input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1264,
+        480
+      ],
+      "id": "3bb2bf53-9b7f-45f1-9cd0-ed61fd5d814a",
+      "name": "Call 'search_cw'"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'search_cw'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ad8965c0-03b3-4bb9-9f17-29e7bb5341d8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8ac479274b15c1a81cdcc004a593334e4212386ff41940c5c9d2b82b57883277"
+  },
+  "id": "inStsH4Q9uhlUKT5",
+  "tags": []
+}

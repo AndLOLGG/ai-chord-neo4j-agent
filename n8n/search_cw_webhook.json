@@ -83,7 +83,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\n\nconst rawQuery =\n  typeof item.body?.query === \"string\" ? item.body.query :\n  typeof item.query === \"string\" ? item.query :\n  typeof item.chatInput === \"string\" ? item.chatInput :\n  typeof item.input === \"string\" ? item.input :\n  typeof item.question === \"string\" ? item.question :\n  \"\";\n\nconst query = rawQuery.trim();\n\nconst rawBody = JSON.stringify({\n  statement: `\n    MATCH (s:Song)-[:BY_ARTIST]->(a:Artist)\n\n    WITH\n      s,\n      a,\n      toLower($query) AS q\n\n    WITH\n      s,\n      a,\n      q,\n      trim(replace(q, toLower(a.name), \"\")) AS titleQueryRaw\n\n    WITH\n      s,\n      a,\n      q,\n      titleQueryRaw,\n      trim(replace(replace(replace(titleQueryRaw, \"(\", \" \"), \")\", \" \"), \"-\", \" \")) AS titleQuery\n\n    WITH\n      s,\n      a,\n      q,\n      titleQuery,\n      [w IN split(titleQuery, \" \") WHERE trim(w) <> \"\"] AS titleWords\n\n    WHERE\n      s.id IS NOT NULL\n      AND trim(s.id) <> \"\"\n      AND s.id <> \"unknown-unknown\"\n      AND s.title IS NOT NULL\n      AND trim(s.title) <> \"\"\n      AND a.name IS NOT NULL\n      AND trim(a.name) <> \"\"\n      AND (\n        (\n          size(titleWords) > 0\n          AND ALL(word IN titleWords WHERE toLower(s.title) CONTAINS word)\n        )\n        OR (\n          size(titleWords) = 0\n          AND (\n            toLower(s.title) CONTAINS q\n            OR q CONTAINS toLower(s.title)\n          )\n        )\n      )\n\n    WITH s, a, q, titleQuery, titleWords\n    OPTIONAL MATCH (s)-[:HAS_SECTION]->(sec:Section)\n\n    WITH\n      s,\n      a,\n      q,\n      titleQuery,\n      titleWords,\n      collect({\n        order: sec.sectionOrder,\n        section: sec.name,\n        chord_line: sec.chord_line\n      }) AS sections\n\n    RETURN\n      s.id AS songId,\n      s.title AS title,\n      a.name AS artist,\n      s.url AS url,\n      s.capo AS capo,\n      s.summary AS summary,\n      sections\n\n    ORDER BY\n      CASE\n        WHEN titleQuery <> \"\" AND toLower(s.title) = titleQuery THEN 100\n        WHEN size(titleWords) > 0 AND ALL(word IN titleWords WHERE toLower(s.title) CONTAINS word) THEN 90\n        WHEN titleQuery <> \"\" AND toLower(s.title) CONTAINS titleQuery THEN 80\n        WHEN titleQuery = \"\" AND toLower(s.title) = q THEN 70\n        WHEN titleQuery = \"\" AND toLower(s.title) CONTAINS q THEN 60\n        ELSE 0\n      END DESC,\n      size(s.title) ASC\n\n    LIMIT 1\n  `.replace(/\\s+/g, \" \").trim(),\n\n  parameters: {\n    query\n  }\n});\n\nreturn [\n  {\n    json: {\n      query,\n      rawBody\n    }\n  }\n];"
+        "jsCode": "const item = $input.first().json;\n\nconst rawQuery =\n  typeof item.body?.query === \"string\" ? item.body.query :\n  typeof item.query === \"string\" ? item.query :\n  typeof item.chatInput === \"string\" ? item.chatInput :\n  typeof item.input === \"string\" ? item.input :\n  typeof item.question === \"string\" ? item.question :\n  \"\";\n\nconst noiseWords = new Set([\n  \"chords\",\n  \"chord\",\n  \"lyrics\",\n  \"tabs\",\n  \"tab\",\n  \"guitar\",\n  \"ukulele\",\n  \"piano\",\n  \"bass\",\n  \"by\"\n]);\n\nconst query = rawQuery\n  .split(/\\s+/)\n  .filter(word => !noiseWords.has(word.toLowerCase()))\n  .join(\" \")\n  .trim();\n\nconst rawBody = JSON.stringify({\n  statement: `\n    MATCH (s:Song)-[:BY_ARTIST]->(a:Artist)\n\n    WITH\n      s,\n      a,\n      toLower($query) AS q\n\n    WITH\n      s,\n      a,\n      q,\n      trim(replace(q, toLower(a.name), \"\")) AS titleQueryRaw\n\n    WITH\n      s,\n      a,\n      q,\n      titleQueryRaw,\n      trim(replace(replace(replace(titleQueryRaw, \"(\", \" \"), \")\", \" \"), \"-\", \" \")) AS titleQuery\n\n    WITH\n      s,\n      a,\n      q,\n      titleQuery,\n      [w IN split(titleQuery, \" \") WHERE trim(w) <> \"\"] AS titleWords\n\n    WHERE\n      s.id IS NOT NULL\n      AND trim(s.id) <> \"\"\n      AND s.id <> \"unknown-unknown\"\n      AND s.title IS NOT NULL\n      AND trim(s.title) <> \"\"\n      AND a.name IS NOT NULL\n      AND trim(a.name) <> \"\"\n      AND (\n        (\n          size(titleWords) > 0\n          AND ALL(word IN titleWords WHERE toLower(s.title) CONTAINS word)\n        )\n        OR (\n          size(titleWords) = 0\n          AND (\n            toLower(s.title) CONTAINS q\n            OR q CONTAINS toLower(s.title)\n          )\n        )\n      )\n\n    WITH s, a, q, titleQuery, titleWords\n    OPTIONAL MATCH (s)-[:HAS_SECTION]->(sec:Section)\n\n    WITH\n      s,\n      a,\n      q,\n      titleQuery,\n      titleWords,\n      collect({\n        order: sec.sectionOrder,\n        section: sec.name,\n        chord_line: sec.chord_line\n      }) AS sections\n\n    RETURN\n      s.id AS songId,\n      s.title AS title,\n      a.name AS artist,\n      s.url AS url,\n      s.capo AS capo,\n      s.summary AS summary,\n      sections\n\n    ORDER BY\n      CASE\n        WHEN titleQuery <> \"\" AND toLower(s.title) = titleQuery THEN 100\n        WHEN size(titleWords) > 0 AND ALL(word IN titleWords WHERE toLower(s.title) CONTAINS word) THEN 90\n        WHEN titleQuery <> \"\" AND toLower(s.title) CONTAINS titleQuery THEN 80\n        WHEN titleQuery = \"\" AND toLower(s.title) = q THEN 70\n        WHEN titleQuery = \"\" AND toLower(s.title) CONTAINS q THEN 60\n        ELSE 0\n      END DESC,\n      size(s.title) ASC\n\n    LIMIT 1\n  `.replace(/\\s+/g, \" \").trim(),\n\n  parameters: {\n    query\n  }\n});\n\nreturn [\n  {\n    json: {\n      query,\n      rawBody\n    }\n  }\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -321,6 +321,53 @@
       "id": "2bf0442b-be16-4132-98a7-44c9976b6ebb",
       "name": "Webhook",
       "webhookId": "cc549916-c92c-4fc1-be35-bceb9f72c14e"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7b6e4987-8193-4f88-9c90-f91e2e510b29",
+              "leftValue": "={{$json.found}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1408,
+        -224
+      ],
+      "id": "e9f00c37-b226-40c1-a630-33f12f52ced3",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nreturn [\n  {\n    json: item\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        -240
+      ],
+      "id": "80d86e5f-de2b-4c8e-8867-5367e8a1c482",
+      "name": "Post Chords from Neo4j"
     }
   ],
   "pinData": {},
@@ -494,7 +541,7 @@
       "main": [
         [
           {
-            "node": "CW Search Request",
+            "node": "If",
             "type": "main",
             "index": 0
           }
@@ -511,6 +558,24 @@
           }
         ]
       ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Post Chords from Neo4j",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CW Search Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -519,7 +584,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "2357481d-55c3-492e-b9d6-dcb253dbe9db",
+  "versionId": "148d8f51-f304-4130-a621-db01535061c9",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "8ac479274b15c1a81cdcc004a593334e4212386ff41940c5c9d2b82b57883277"

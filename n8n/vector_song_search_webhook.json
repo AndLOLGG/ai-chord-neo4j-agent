@@ -1,0 +1,226 @@
+{
+  "name": "vector_song_search_webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b1b5c865-26e9-4a0a-b3d2-96d2d86568f3",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -176,
+        0
+      ],
+      "id": "19834b2c-8501-4b04-99f1-a04349dda252",
+      "name": "Webhook - Vector Song Search",
+      "webhookId": "b1b5c865-26e9-4a0a-b3d2-96d2d86568f3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconst rawQuery =\n  typeof item.body?.query === \"string\" ? item.body.query :\n  typeof item.query === \"string\" ? item.query :\n  typeof item.song === \"string\" ? item.song :\n  typeof item.text === \"string\" ? item.text :\n  \"\";\n\nreturn [\n  {\n    json: {\n      query: rawQuery.trim()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        0
+      ],
+      "id": "0b602a9d-330b-4513-b4f4-6b53b8811bba",
+      "name": "Prepare Query"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconst fields = item.data?.fields || [];\nconst values = item.data?.values || [];\nconst originalQuery = $('Prepare Query').first().json.query || \"your query\";\n\nif (!values.length) {\n  return [\n    {\n      json: {\n        found: false,\n        response: `I could not find any similar songs for: ${originalQuery}`\n      }\n    }\n  ];\n}\n\nfunction shorten(text, max = 140) {\n  const clean = String(text || \"\").replace(/\\s+/g, \" \").trim();\n  if (clean.length <= max) return clean;\n  return clean.slice(0, max).trim() + \"...\";\n}\n\nconst matches = values.map(row => {\n  const mapped = {};\n  fields.forEach((field, index) => {\n    mapped[field] = row[index];\n  });\n\n  return {\n    song: mapped.song,\n    artist: mapped.artist,\n    summary: shorten(mapped.summary, 140),\n    url: mapped.url,\n    score: mapped.score\n  };\n});\n\nconst lines = [];\nlines.push(`Similar songs for: ${originalQuery}`);\nlines.push(\"\");\n\nfor (const match of matches) {\n  lines.push(`- ${match.song} — ${match.artist} (${Number(match.score).toFixed(3)})`);\n}\n\nreturn [\n  {\n    json: {\n      found: true,\n      response: lines.join(\"\\n\"),\n      matches\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        0
+      ],
+      "id": "de9edf6f-8824-4f10-a68a-e4b8d54dc18f",
+      "name": "Format Vector Results"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1008,
+        0
+      ],
+      "id": "98c5c85b-5608-4a8b-a235-807c418456a6",
+      "name": "Respond - Vector Results"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:7474/db/neo4j/query/v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{$json.rawBody}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "934d3ab8-8090-4fb9-bb9e-ede0b8bf87f3",
+      "name": "Query Neo4j Vector",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "UrzzC7SUoXlMkEnx",
+          "name": "Neo4J Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"text-embedding-3-small\",\n  \"input\": \"={{$json.query}}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "788c0e10-c3fe-4df9-982a-0140679d385c",
+      "name": "Create Query Embedding",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "UrzzC7SUoXlMkEnx",
+          "name": "Neo4J Auth"
+        },
+        "httpBearerAuth": {
+          "id": "2wOK3tWQLacsZEqf",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconst rawBody = JSON.stringify({\n  statement: `\n    CALL db.index.vector.queryNodes('song_embedding_index', 5, $embedding)\n    YIELD node, score\n    MATCH (node)-[:BY_ARTIST]->(artist:Artist)\n    RETURN\n      node.title AS song,\n      artist.name AS artist,\n      node.summary AS summary,\n      node.url AS url,\n      score\n    ORDER BY score DESC\n  `.replace(/\\s+/g, \" \").trim(),\n  parameters: {\n    embedding: item.data?.[0]?.embedding || []\n  }\n});\n\nreturn [\n  {\n    json: {\n      rawBody\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "73137a7a-fb4c-4b81-8b49-ffd7c2c7b73d",
+      "name": "Build Vector Request Body"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Vector Song Search": {
+      "main": [
+        [
+          {
+            "node": "Prepare Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Query": {
+      "main": [
+        [
+          {
+            "node": "Create Query Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Vector Results": {
+      "main": [
+        [
+          {
+            "node": "Respond - Vector Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Neo4j Vector": {
+      "main": [
+        [
+          {
+            "node": "Format Vector Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Query Embedding": {
+      "main": [
+        [
+          {
+            "node": "Build Vector Request Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Vector Request Body": {
+      "main": [
+        [
+          {
+            "node": "Query Neo4j Vector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "e74ffd87-aef5-4dc4-bf7b-d6aa4d98d013",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8ac479274b15c1a81cdcc004a593334e4212386ff41940c5c9d2b82b57883277"
+  },
+  "id": "fC9zPN4TwHy5Knda8UQsK",
+  "tags": []
+}

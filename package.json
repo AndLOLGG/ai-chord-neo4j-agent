@@ -5,7 +5,8 @@
   "description": "MCP wrapper and project assets for AI chord retrieval using Hermes, n8n, and Neo4j.",
   "type": "module",
   "scripts": {
-    "mcp": "node mcp/server.js"
+    "mcp": "node mcp/server.js",
+    "embed:songs": "node scripts/embed-songs.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
